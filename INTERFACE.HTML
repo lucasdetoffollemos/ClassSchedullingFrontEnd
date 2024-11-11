@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Algoritmos Genéticos</title>
+    <style>
+        /* Estilos do formulário */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+            flex-direction: column;
+            /* Permite que as telas fiquem empilhadas verticalmente */
+        }
+
+        .container {
+            width: 400px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #d9e5f7;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            /* Adiciona um espaço entre as telas */
+        }
+
+        .container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group,
+        .result-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="file"],
+        input[type="number"],
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #applyBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        #resetBtn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        #closeBtn,
+        #exportBtn {
+            background-color: #555;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Estilos específicos para a tela de resultado */
+        .result-container {
+            display: none;
+            margin-top: 20px;
+            /* Adiciona um espaço entre o formulário e os resultados */
+        }
+
+        .result-container .result-group .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-direction: row;
+        }
+
+        .result-container .result-group .button-container button {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Algoritmos Genéticos - Cadastro</h2>
+        <!-- Campos de entrada para as configurações -->
+        <div class="form-group">
+            <label for="jsonFile">Inserir JSON:</label>
+            <input type="file" id="jsonFile" accept=".json">
+        </div>
+        <div class="form-group">
+            <label for="crossProb">Probabilidade de Cruzamento (%):</label>
+            <input type="number" id="crossProb" placeholder="Ex: 80" min="0" max="100">
+        </div>
+        <div class="form-group">
+            <label for="mutationProb">Probabilidade de Mutação (%):</label>
+            <input type="number" id="mutationProb" placeholder="Ex: 5" min="0" max="100">
+        </div>
+        <div class="form-group">
+            <label for="chromosomes">Cromossomos:</label>
+            <input type="number" id="chromosomes" placeholder="Ex: 100" min="1" onchange="validateElitismCount()">
+        </div>
+        <div class="form-group">
+            <label for="elitismCount">Cromossomos por Elitismo:</label>
+            <input type="number" id="elitismCount" placeholder="Ex: 2" min="1" onchange="validateElitismCount()">
+        </div>
+        <div class="form-group">
+            <label for="maxIterations">Quantidade Máxima de Iterações:</label>
+            <input type="number" id="maxIterations" placeholder="Ex: 1000" min="1">
+        </div>
+        <div class="form-group">
+            <label for="noImprovement">Iterações Sem Melhorias:</label>
+            <input type="number" id="noImprovement" placeholder="Ex: 50" min="1">
+        </div>
+        <div class="button-group">
+            <button id="applyBtn" onclick="applySettings()" disabled>Aplicar</button>
+            <button id="resetBtn" onclick="resetForm()">Resetar</button>
+            <button id="closeBtn" onclick="closeForm()">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Tela de Resultado -->
+    <div class="container result-container" id="resultContainer" style="display: none;">
+        <h3>Algoritmos Genéticos - Resultado</h3>
+        <div class="result-group">
+            <label>Nota do melhor cromossomo:</label>
+            <input type="text" id="bestChromosomeScore" readonly>
+        </div>
+        <div class="result-group">
+            <label>Quantidade de iterações:</label>
+            <input type="text" id="iterationsCount" readonly>
+        </div>
+        <div class="result-group">
+            <label>Tempo de execução:</label>
+            <input type="text" id="executionTime" readonly>
+        </div>
+        <div class="result-group button-container">
+            <button id="exportBtn" onclick="exportResults()">Salvar</button>
+            <button onclick="closeResults()">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        let jsonData = null;
+
+        document.getElementById("jsonFile").addEventListener("change", function (event) {
+            const file = event.target.files[0];
+            const applyBtn = document.getElementById("applyBtn");
+
+            if (file && file.type === "application/json") {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        jsonData = JSON.parse(e.target.result);
+                        alert("Arquivo JSON carregado com sucesso!");
+                        applyBtn.disabled = false;  // Habilita o botão Aplicar
+                    } catch (error) {
+                        alert("Erro ao ler o arquivo JSON.");
+                        applyBtn.disabled = true;  // Desabilita o botão Aplicar em caso de erro
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                alert("Por favor, selecione um arquivo JSON válido.");
+                applyBtn.disabled = true;  // Desabilita o botão Aplicar
+            }
+        });
+
+        function validateElitismCount() {
+            const chromosomes = parseInt(document.getElementById("chromosomes").value);
+            const elitismCount = parseInt(document.getElementById("elitismCount").value);
+
+            if (elitismCount >= chromosomes) {
+                alert("O valor de Cromossomos por Elitismo deve ser menor que o valor de Cromossomos.");
+                document.getElementById("elitismCount").value = '';
+            }
+        }
+
+        function applySettings() {
+            const crossProb = document.getElementById("crossProb").value;
+            const mutationProb = document.getElementById("mutationProb").value;
+            const chromosomes = document.getElementById("chromosomes").value;
+            const elitismCount = document.getElementById("elitismCount").value;
+            const maxIterations = document.getElementById("maxIterations").value;
+            const noImprovement = document.getElementById("noImprovement").value;
+
+            if (!crossProb || !mutationProb || !chromosomes || !elitismCount || !maxIterations || !noImprovement) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            // Simulação do processamento e retorno de dados da API
+            const resultData = {
+                bestScore: "95.7",
+                iterations: 1200,
+                executionTime: "2 minutos"
+            };
+
+            // Exibir a tela de resultados com os dados simulados
+            showResultScreen(resultData);
+            alert("Configurações aplicadas com sucesso!");
+        }
+
+        function showResultScreen(resultData) {
+            document.getElementById("resultContainer").style.display = "block";
+            document.getElementById("bestChromosomeScore").value = resultData.bestScore;
+            document.getElementById("iterationsCount").value = resultData.iterations;
+            document.getElementById("executionTime").value = resultData.executionTime;
+        }
+
+        function exportResults() {
+            const resultData = {
+                bestScore: document.getElementById("bestChromosomeScore").value,
+                iterations: document.getElementById("iterationsCount").value,
+                executionTime: document.getElementById("executionTime").value
+            };
+
+            const blob = new Blob([JSON.stringify(resultData, null, 2)], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "resultados.json";
+            link.click();
+        }
+
+        function resetForm() {
+            document.getElementById("jsonFile").value = "";
+            document.getElementById("crossProb").value = "";
+            document.getElementById("mutationProb").value = "";
+            document.getElementById("chromosomes").value = "";
+            document.getElementById("elitismCount").value = "";
+            document.getElementById("maxIterations").value = "";
+            document.getElementById("noImprovement").value = "";
+            document.getElementById("applyBtn").disabled = true;
+            jsonData = null;
+        }
+
+        function closeForm() {
+            window.close();
+        }
+
+        function closeResults() {
+            document.getElementById("resultContainer").style.display = "none";
+        }
+    </script>
+</body>
+
+</html>
